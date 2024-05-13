@@ -11,7 +11,13 @@ use Illuminate\Support\Str;
 
 class InboundStuffController extends Controller
 {
+
     
+    public function __construct()
+    {
+        $this->middleware('auth:api');
+    }
+
     public function index(request $request)
     {
         try{
@@ -85,37 +91,32 @@ class InboundStuffController extends Controller
         }
     }
 
-     public function destroy(InboundStuff $inboundStuff, $id)
+    public function destroy($id)
     {
         try {
-            $checkProses = InboundStuff::where('id', $id)->first();
-    
-            if ($checkProses) {
-                $stuffId = $checkProses->stuff_id;
-                $totalInbound = $checkProses->total;
-                $checkProses->delete();
-    
-                $dataStock = StuffStock::where('stuff_id', $checkProses->stuff_id)->first();
-                
-                if ($dataStock) {
-                    $total_available = (int)$dataStock->total_available - (int)$totalInbound;
-                    $minusTotalStock = $dataStock->update(['total_available' => $total_available]);
-    
-                    if ($minusTotalStock) {
-                        $updateStufAndInbound = Stuff::where('id', $stuffId)->with('inboundStuffs', 'stuffStock')->first();
-                        return Apiformater::sendResponse(200, 'success', $updateStufAndInbound);
-                    }
-                } else {
-                    // Tangani jika data stok tidak ditemukan
-                    return Apiformater::sendResponse(404, 'not found', 'Data stok stuff tidak ditemukan');
-                }
-            } else {
-                // Tangani jika data InboundStuff tidak ditemukan
-                return Apiformater::sendResponse(404, 'not found', 'Data InboundStuff tidak ditemukan');
+            $inboundData = Inboundstuff::where('id', $id)->first();
+            $stuffId = $inboundData['stuff_id'];
+            $totalInbound = $inboundData['total'];
+
+            $dataStock = StuffStock::where('stuff_id',$inboundData['stuff_id'])->first();
+            $total_available = (int)$dataStock['total_available'] - (int)$totalInbound;
+
+            if ($total_available < 0) {
+                return Apiformater::sendResponse(400,'bad request','Jumlah total imbound yang akan dihapus lebih besar dari total available stuff saat ini!');
             }
-        } catch (\Exception $err) {
-            // Tangani kesalahan
-            return Apiformater::sendResponse(400, 'bad request', $err->getMessage());
+            
+            $inboundData->delete();
+
+            $minusTotalStock = StuffStock::where('stuff_id', $inboundData['stuff_id'])->update(['total_available' => $total_available]);
+
+            if ($minusTotalStock){
+                $updatedStuffWithInboundAndStock = Stuff::where('id', $inboundData['staff_id'])->with('inboundStuffs','stuffStock')->first();
+                
+                $inboundData->delete();
+                return Apiformater::sendResponse(200,'Success',$updatedStuffWithInboundAndStock);
+            }
+        }catch (\Exception $err){
+            return Apiformater::sendResponse(400,'bad request',$err->getMessage());
         }
     }
     
@@ -131,7 +132,7 @@ class InboundStuffController extends Controller
         }
     }
     
-    public function restore(InboundStuff $inboundStuff, $id)
+    public function restore(InboundStuff $id)
     {
         try {
             // Memulihkan data dari tabel 'inbound_stuffs'
@@ -183,21 +184,7 @@ class InboundStuffController extends Controller
             return Apiformater::sendResponse(400, 'bad request', $err->getMessage());
         }
     }   
-    
-    private function deleteAssociatedFile(InboundStuff $inboundStuff)
-    {
-        // Mendapatkan jalur lengkap ke direktori public
-        $publicPath = $_SERVER['DOCUMENT_ROOT'] . '/public/proof';
 
     
-        // Menggabungkan jalur file dengan jalur direktori public
-         $filePath = public_path('proof/'.$inboundStuff->proof_file);
-    
-        // Periksa apakah file ada
-        if (file_exists($filePath)) {
-            // Hapus file jika ada
-            unlink(base_path($filePath));
-        }
-    }
     
 }

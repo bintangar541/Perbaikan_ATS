@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Lumen\Auth\Authorizable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 
-class User extends Model implements AuthenticatableContract, AuthorizableContract
+class User extends Model implements AuthenticatableContract, AuthorizableContract, JWTSubject
 {
-    use Authenticatable, Authorizable, HasFactory,SoftDeletes;
+    use Authenticatable, Authorizable, HasFactory, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -20,7 +21,7 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
      * @var string[]
      */
     protected $fillable = [
-        'username', 'email','password','role'
+        'username', 'email', 'password', 'role'
     ];
 
     /**
@@ -32,13 +33,34 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
     //     'password',
     // ];
 
+    /**
+     * Get the identifier that will be stored in the subject claim of the JWT.
+     *
+     * @return mixed
+     */
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    /**
+     * Return a key value array, containing any custom claims to be added to the JWT.
+     *
+     * @return array
+     */
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
+    
+    public function restorations() 
+    {
+        return $this->hasMany(Restoration::class);
+    }
     public function lendings()
     {
         return $this->hasMany(Lending::class);
     }
 
-    public function restorations()
-    {
-        return $this->hasMany(Restoration::class);
-    }
+    
 }

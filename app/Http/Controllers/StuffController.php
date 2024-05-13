@@ -8,6 +8,10 @@ use Illuminate\Http\Request;
 
 class StuffController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth:api');
+    }
     public function index()
     {
         try {
@@ -85,17 +89,31 @@ class StuffController extends Controller
     }
     
     public function destroy($id)
-    {
-        try{
-            $checkProses = Stuff::where('id', $id)->delete();
-            
-            if ($checkProses) {
-                return Apiformater::sendResponse(200, 'succes', 'Berhasil hapus data stuff');
+  {
+      try{
+          $stuff = Stuff::where('id', $id)->first();
+
+              if($stuff->inboundStuffs()->exists()) {
+                  return Apiformater::sendResponse(400,'bad request', 'Tidak dapat menghapus data stuff karena sudah terdapat data inbound!');
+                }
+
+                elseif($stuff->stuffStock()->exists()) {
+                return Apiformater::sendResponse(400,'bad request', 'Tidak dapat menghapus data stuff karena sudah terdapat data inbound!');
+                }
+
+                elseif($stuff->lending()->exists()) {
+                return Apiformater::sendResponse(400,'bad request', 'Tidak dapat menghapus data stuff karena sudah terdapat data inbound!');
+                }
+                
+              $checkProsess = $stuff->delete();
+
+          if ($checkProsess) {
+              return Apiformater::sendResponse(200, 'succes', 'Berhasil hapus data stuff');
             }
-        }catch (\Exception $err) {
-            return Apiformater::sendResponse(400, 'bad request', $err->getMessage());
-        }
-    }
+      }catch (\Exception $err) {
+          return Apiformater::sendResponse(400, 'bad request', $err->getMessage());
+  }
+}
 
     public function trash()
     {
